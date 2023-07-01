@@ -116,6 +116,11 @@ camera = ti.ui.Camera()
 current_t = 0.0
 initialize_mass_points()
 
+# output
+result_dir = "../video"
+video_manager = ti.tools.VideoManager(output_dir=result_dir,
+                                      framerate=24,
+                                      automatic_build=True)
 #rendering loop
 while window.running:
     if current_t > 1.5:
@@ -142,4 +147,5 @@ while window.running:
                     radius=ball_radius * 0.8,
                     color=(0.5, 0.42, 0.8))
     canvas.scene(scene)
+    video_manager.write_frame(window.get_image_buffer_as_numpy())
     window.show()
