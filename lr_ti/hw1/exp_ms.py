@@ -1,20 +1,32 @@
 import taichi as ti
 
-ti.init(arch=ti.vulkan)
+ti.init(arch=ti.cpu)
 
+# the scale of the simulation
 n = 128
 quad_size = 1.0 / n
-dt = 4e-2 / n
+
+dt = 3.125e-4
+# dt = 4e-2 / n
+
+# substeps=53,the number of iteration if we want to achieve 60fps
 substeps = int(1 / 60 // dt)
 
 gravity = ti.Vector([0, -9.8, 0])
 spring_Y = 3e4
-dashpot_damping = 1e4
+dashpot_damping = 1
 drag_damping = 1
+# assume each particle's mass is Identity matrix
+# M = ti.Matrix.field(3, 3, float, (n, n))
 
+J = ti.Matrix.field(3, 3, float, (n, n))
+
+# balls' model
 ball_radius = 0.3
-ball_center = ti.Vector.field(3, dtype=float, shape=(1, ))
+ball_center = ti.Vector.field(3, dtype=float, shape=(3, ))
 ball_center[0] = [0, 0, 0]
+ball_center[1] = [0.4, 0, 0]
+ball_center[2] = [-0.4, 0, 0]
 
 x = ti.Vector.field(3, dtype=float, shape=(n, n))
 v = ti.Vector.field(3, dtype=float, shape=(n, n))
@@ -24,7 +36,9 @@ indices = ti.field(int, shape=num_triangles * 3)
 vertices = ti.Vector.field(3, dtype=float, shape=n * n)
 colors = ti.Vector.field(3, dtype=float, shape=n * n)
 
+# configuration
 bending_springs = False
+use_implicit = True
 
 
 @ti.kernel
@@ -72,8 +86,45 @@ else:
                 spring_offsets.append(ti.Vector([i, j]))
 
 
+@ti.func
+def clr(m):
+    for i in range(3):
+        for j in range(3):
+            m[i, j] = 0.0
+
+
+@ti.func
+def Jacobi_iterations(A, idx, b):
+    new_x = ti.Vector([0.0, 0.0, 0.0])
+
+    for i in range(3):
+        r = b[i]
+        for j in range(3):
+            if i != j:
+                r -= A[i, j] * v[idx][j]
+        new_x[i] = r / A[i, i]
+
+    for i in range(3):
+        v[idx][i] = new_x[i]
+
+
+@ti.func
+def collision_detection():
+    for i in ti.grouped(x):
+        v[i] *= ti.exp(-drag_damping * dt)
+        for j in range(3):
+            offset_to_center = x[i] - ball_center[j]
+            if offset_to_center.norm() <= ball_radius:
+                normal = offset_to_center.normalized()
+                v[i] -= min(v[i].dot(normal), 0) * normal
+        x[i] += v[i] * dt
+
+
+# Most Important Function
+
+
 @ti.kernel
-def substep():
+def exp_substep():
     for i in ti.grouped(x):
         v[i] += gravity * dt
 
@@ -90,15 +141,11 @@ def substep():
 
                 force += -spring_Y * d * (current_dist / original_dist - 1)
                 force += -v_ij.dot(d) * d * dashpot_damping * quad_size
+
         v[i] += force * dt
 
-    for i in ti.grouped(x):
-        v[i] *= ti.exp(-drag_damping * dt)
-        offset_to_center = x[i] - ball_center[0]
-        if offset_to_center.norm() <= ball_radius:
-            normal = offset_to_center.normalized()
-            v[i] -= min(v[i].dot(normal), 0) * normal
-        x[i] += v[i] * dt
+    # collision detection
+    collision_detection()
 
 
 @ti.kernel
@@ -116,19 +163,20 @@ camera = ti.ui.Camera()
 current_t = 0.0
 initialize_mass_points()
 
-# output
-result_dir = "../video"
-video_manager = ti.tools.VideoManager(output_dir=result_dir,
-                                      framerate=24,
-                                      automatic_build=True)
+# dump to images
+# result_dir = "../video"
+# video_manager = ti.tools.VideoManager(output_dir=result_dir,
+#   framerate=24,
+#   automatic_build=True)
+
 #rendering loop
 while window.running:
-    if current_t > 1.5:
+    if current_t > 3:
         initialize_mass_points()
         current_t = 0
 
     for i in range(substeps):
-        substep()
+        exp_substep()
         current_t += dt
     update_vertices()
 
@@ -147,5 +195,5 @@ while window.running:
                     radius=ball_radius * 0.8,
                     color=(0.5, 0.42, 0.8))
     canvas.scene(scene)
-    video_manager.write_frame(window.get_image_buffer_as_numpy())
+    # video_manager.write_frame(window.get_image_buffer_as_numpy())
     window.show()
