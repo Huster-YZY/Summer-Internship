@@ -10,16 +10,17 @@ dt = 3.125e-4
 # dt = 4e-2 / n
 
 # substeps=53,the number of iteration if we want to achieve 60fps
-substeps = int(1 / 60 // dt)
+substeps = int(1 / 10 // dt)
 
 gravity = ti.Vector([0, -9.8, 0])
+I = ti.Matrix([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
 spring_Y = 3e4
 dashpot_damping = 1
 drag_damping = 1
 # assume each particle's mass is Identity matrix
 # M = ti.Matrix.field(3, 3, float, (n, n))
 
-J = ti.Matrix.field(3, 3, float, (n, n))
+J = ti.Matrix.field(3, 3, float, shape=(n, n))
 
 # balls' model
 ball_radius = 0.3
@@ -142,9 +143,18 @@ def exp_substep():
                 force += -spring_Y * d * (current_dist / original_dist - 1)
                 force += -v_ij.dot(d) * d * dashpot_damping * quad_size
 
-        v[i] += force * dt
+                # implicit
+                mat = d.outer_product(d)
+                J[i] += -(spring_Y / original_dist) * (
+                    (1 - original_dist / current_dist) * (I - mat) + mat)
 
-    # collision detection
+        # v[i] += force * dt
+
+        # implicit
+        A = I - J[i] * dt**2
+        b = J[i] @ v[i] * dt * dt + dt * force
+        v[i] += A.inverse() @ b
+
     collision_detection()
 
 
