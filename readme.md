@@ -11,7 +11,9 @@ This repository is mainly about basic physical simulation, such as mass-spring s
 
 ![](./video/mass_spring.gif)
 
-<h4 align=center>Implicit Solver of Mass-Spring system</h4>
-<p align=center>
- <img src=./video/implicit_mass_spring.gif/>
-</p>
+
+<h4 align=center>Implicit / Explicit  Solver </h4>
+
+|||
+|--|--|
+| <img src=./video/implicit_mass_spring.gif/> | <img src=./video/explicit_mass_spring.gif/> |

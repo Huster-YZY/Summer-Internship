@@ -1,7 +1,7 @@
 import taichi as ti
 
 ti.init(arch=ti.vulkan)  # Alternatively, ti.init(arch=ti.cpu)
-use_implicit = True
+use_implicit = False
 
 n = 50
 num_iteration = 3
@@ -211,14 +211,14 @@ initialize_mass_points()
 init_m()
 
 # dump to images
-# result_dir = "../../video"
-# video_manager = ti.tools.VideoManager(output_dir=result_dir,
-#                                       framerate=60,
-#                                       automatic_build=True)
+result_dir = "../../video"
+video_manager = ti.tools.VideoManager(output_dir=result_dir,
+                                      framerate=60,
+                                      automatic_build=True)
 
 while window.running:
-    if current_t > 50:
-        # break
+    if current_t > 3:
+        break
         initialize_mass_points()
         current_t = 0
 
@@ -246,5 +246,5 @@ while window.running:
                     radius=ball_radius * 0.8,
                     color=(0.5, 0.42, 0.8))
     canvas.scene(scene)
-    # video_manager.write_frame(window.get_image_buffer_as_numpy())
+    video_manager.write_frame(window.get_image_buffer_as_numpy())
     window.show()
