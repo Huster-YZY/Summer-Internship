@@ -1,0 +1,4 @@
+1. numerical fracture
+2. why choose 3 as the transfer expand?
+3. How to derive MLS-MPM 's tensor formulation?
+(Go to read the paper of APIC and MLS-MPM)

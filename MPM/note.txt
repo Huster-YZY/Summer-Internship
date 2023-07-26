@@ -1,0 +1,13 @@
+My Plan
+
+At first, I want to implement a explicit MPM which doesn't
+need to solve a huge linear system to help me have a better understanding of MPM.
+
+Then, I'd like to introduce different materials and collision-detection into my project.
+
+Finally, after being familiar with how MPM works, I will endeavour　to implement an implicit
+MPM with MGPCG(Multi Grid Preconditioning Conjugate Gradient), which is a very powerful but 
+complex tool used to solve linear system.
+
+At the end, I will try to combine simulation method with Reinforcement Learning and propose
+some good ideas about S4L.
