@@ -58,10 +58,18 @@ def P2G():
             F[p] = U @ sig @ V.transpose()
 
         #MLS-MPM (need to be learned)
-        stress = 2 * mu * (F[p] - U @ V.transpose()) @ F[p].transpose(
-        ) + ti.Matrix.identity(float, 2) * la * J * (J - 1)
+        I = ti.Matrix.identity(float, 2)
+
+        # Fixed Corotated Constitutive Model
+        # stress = 2 * mu * (
+        #     F[p] - U @ V.transpose()) @ F[p].transpose() + I * la * J * (J - 1)
+
+        #Neo-Hookean
+        stress = mu * (F[p] @ F[p].transpose() - I) + I * la * ti.log(J)
+
         stress = (-dt * p_vol * 4 * inv_dx * inv_dx) * stress
         affine = stress + p_mass * C[p]
+        # affine = p_mass * C[p]
 
         #p2g
         for i, j in ti.static(ti.ndrange(3, 3)):
@@ -101,10 +109,13 @@ def G2P():
         new_C = ti.Matrix.zero(float, 2, 2)
         for i, j in ti.static(ti.ndrange(3, 3)):
             dpos = ti.Vector([i, j]).cast(float) - fx
+            # dpos *= dx
             g_v = grid_v[base + ti.Vector([i, j])]
             weight = w[i][0] * w[j][1]
             new_v += weight * g_v
+            # new_C += 4 * inv_dx**2 * weight * g_v.outer_product(dpos)
             new_C += 4 * inv_dx * weight * g_v.outer_product(dpos)
+
         v[p], C[p] = new_v, new_C
         x[p] += v[p] * dt
 
@@ -121,7 +132,7 @@ def substep():
 
 
 #we will simulate 3 materials including fluid,elastic object and snow
-group_size = n_particles // 4
+group_size = n_particles // 3
 
 
 @ti.kernel
@@ -129,9 +140,9 @@ def initialize():
     for i in range(n_particles):
         x[i] = [
             ti.random() * 0.2 + 0.3 + 0.1 * (i // group_size),
-            ti.random() * 0.2 + 0.05 + 0.20 * (i // group_size)
+            ti.random() * 0.2 + 0.05 + 0.32 * (i // group_size)
         ]
-        material[i] = 2  # i // group_size
+        material[i] = 1  # i // group_size
         v[i] = ti.Vector([0, 0])
         F[i] = ti.Matrix([[1, 0], [0, 1]])
         Jp[i] = 1
@@ -147,7 +158,7 @@ def main():
                     radius=1,
                     palette=[0x068587, 0xED553B, 0xEEEEF0],
                     palette_indices=material)
-        video_manager.write_frame(gui.get_image())
+        # video_manager.write_frame(gui.get_image())
         gui.show()
 
 
