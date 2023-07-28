@@ -57,7 +57,7 @@ def P2G():
         elif material[p] == 2:  #snow
             F[p] = U @ sig @ V.transpose()
 
-        #MLS-MPM (need to be learned)
+        #MLS-MPM
         I = ti.Matrix.identity(float, 2)
 
         # Fixed Corotated Constitutive Model
@@ -68,8 +68,11 @@ def P2G():
         stress = mu * (F[p] @ F[p].transpose() - I) + I * la * ti.log(J)
 
         stress = (-dt * p_vol * 4 * inv_dx * inv_dx) * stress
+        #APIC
         affine = stress + p_mass * C[p]
-        # affine = p_mass * C[p]
+
+        #PIC
+        # affine = stress
 
         #p2g
         for i, j in ti.static(ti.ndrange(3, 3)):
