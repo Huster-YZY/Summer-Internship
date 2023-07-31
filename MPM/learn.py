@@ -145,7 +145,7 @@ def initialize():
             ti.random() * 0.2 + 0.3 + 0.1 * (i // group_size),
             ti.random() * 0.2 + 0.05 + 0.32 * (i // group_size)
         ]
-        material[i] = 1  # i // group_size
+        material[i] = i // group_size
         v[i] = ti.Vector([0, 0])
         F[i] = ti.Matrix([[1, 0], [0, 1]])
         Jp[i] = 1
