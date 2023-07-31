@@ -5,18 +5,24 @@ else:
     export_file = ""
 
 import numpy as np
-
+from plyImporter import PlyImporter
 import taichi as ti
 
 ti.init(arch=ti.gpu)
 
 # dim, n_grid, steps, dt = 2, 128, 20, 2e-4
 # dim, n_grid, steps, dt = 2, 256, 32, 1e-4
-dim, n_grid, steps, dt = 3, 32, 25, 4e-4
+dim, n_grid, steps, dt = 3, 64, 25, 1e-4
 # dim, n_grid, steps, dt = 3, 64, 25, 2e-4
 # dim, n_grid, steps, dt = 3, 128, 25, 8e-5
 
-n_particles = n_grid**dim // 2**(dim - 1)
+# ply2 = PlyImporter("/Users/YZY/g201/MPM/frames/mpm3d_000000.ply")
+ply3 = PlyImporter("/Users/YZY/g201/MPM/model/bunny.ply")
+
+# n_particles = n_grid**dim // 2**(dim - 1)
+n_particles = ply3.get_count()
+print(n_particles)
+# exit(0)
 dx = 1 / n_grid
 inv_dx = n_grid
 p_rho = 1
@@ -128,7 +134,7 @@ def substep():
 @ti.kernel
 def init():
     for i in range(n_particles):
-        F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.15
+        # F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.15
         # F_J[i] = 1
         F[i] = ti.Matrix.identity(float, dim)
 
@@ -153,7 +159,7 @@ def T(a):
 
 def main():
     init()
-
+    F_x.from_numpy(ply3.get_array())
     gui = ti.GUI("MPM3D", background_color=0x112F41)
     while gui.running and not gui.get_event(gui.ESCAPE):
         for _ in range(steps):
@@ -164,7 +170,7 @@ def main():
             writer.add_vertex_pos(pos[:, 0], pos[:, 1], pos[:, 2])
             writer.export_frame_ascii(gui.frame, export_file)
         # also can be replace by ti.ui.Scene()
-        gui.circles(T(pos), radius=1.5, color=0x66CCFF)
+        gui.circles(T(pos), radius=1.5, color=0xED553B)
         gui.show()
 
 
