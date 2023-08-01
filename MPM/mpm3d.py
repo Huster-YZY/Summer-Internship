@@ -8,7 +8,7 @@ import numpy as np
 from plyImporter import PlyImporter
 import taichi as ti
 
-ti.init(arch=ti.gpu)
+ti.init(arch=ti.cpu)
 
 # dim, n_grid, steps, dt = 2, 128, 20, 2e-4
 # dim, n_grid, steps, dt = 2, 256, 32, 1e-4
@@ -30,7 +30,7 @@ p_vol = (dx * 0.5)**2
 p_mass = p_vol * p_rho
 gravity = 9.8
 bound = 3
-E, nu = 1000, 0.2
+E, nu = 400, 0.2
 mu, la = E / (2 * (1 + nu)), E * nu / ((1 + nu) * (1 - 2 * nu))
 
 F_x = ti.Vector.field(dim, float, n_particles)
@@ -41,6 +41,10 @@ F = ti.Matrix.field(dim, dim, float, n_particles)
 
 F_grid_v = ti.Vector.field(dim, float, (n_grid, ) * dim)
 F_grid_m = ti.field(float, (n_grid, ) * dim)
+
+co_position = ti.Vector.field(dim, float, ())
+co_v = ti.Vector.field(dim, float, ())
+fe = 0.5  #friction coefficient
 
 neighbour = (3, ) * dim
 
@@ -82,12 +86,30 @@ def P2G():
 
 
 @ti.func
+def pp(x):
+    print(x)
+
+
+@ti.func
 def Boundary():
     for I in ti.grouped(F_grid_m):
         if F_grid_m[I] > 0:
             F_grid_v[I] /= F_grid_m[I]
             F_grid_v[I][1] -= dt * gravity
 
+        #Central Ball Collision
+        grid_pos = I * dx
+        d = grid_pos - co_position[None]
+        if d.norm_sqr() <= 0.01:
+            dir = d.normalized()
+            v_ref = F_grid_v[I] - co_v[None]
+            vn = v_ref.dot(dir)
+            if vn < 0.0:
+                vt = v_ref - vn * dir
+                v_ref = vt + fe * vn * vt.normalized()
+                F_grid_v[I] = v_ref + co_v[None]
+
+        # Box Constraint
         cond = (I < bound) & (F_grid_v[I] <
                               0) | (I > n_grid - bound) & (F_grid_v[I] > 0)
         F_grid_v[I] = ti.select(cond, 0, F_grid_v[I])
@@ -132,8 +154,11 @@ def substep():
 
 @ti.kernel
 def init():
+    co_position[None] = ti.Vector([0.5, 0.1, 0.5])
+    co_v[None] = ti.Vector([0.0, 1.0, 0.0])
     for i in range(n_particles):
-        F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.2
+        F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.3
+        F_x[i][1] += 0.2
         # F_J[i] = 1
         F[i] = ti.Matrix.identity(float, dim)
 
@@ -156,20 +181,41 @@ def T(a):
     return np.array([u, v]).swapaxes(0, 1) + 0.5
 
 
+@ti.kernel
+def update_co_position():
+    t = co_position[None][1] + dt * co_v[None][1]
+    if t >= 1.0 or t < 0.1:
+        co_v[None] *= -1.0
+    co_position[None] += dt * co_v[None]
+
+
+result_dir = "../video"
+video_manager = ti.tools.VideoManager(output_dir=result_dir,
+                                      framerate=24,
+                                      automatic_build=True)
+
+
 def main():
     init()
     # F_x.from_numpy(ply3.get_array())
     gui = ti.GUI("MPM3D", background_color=0x112F41)
+
     while gui.running and not gui.get_event(gui.ESCAPE):
+
         for _ in range(steps):
             substep()
+            update_co_position()
         pos = F_x.to_numpy()
+        ball_center = T(np.array([co_position.to_numpy()]))
         if export_file:
             writer = ti.tools.PLYWriter(num_vertices=n_particles)
             writer.add_vertex_pos(pos[:, 0], pos[:, 1], pos[:, 2])
             writer.export_frame_ascii(gui.frame, export_file)
+
         # also can be replace by ti.ui.Scene()
+        gui.circle(ball_center[0], radius=45, color=0x068587)
         gui.circles(T(pos), radius=1.5, color=0xED553B)
+        video_manager.write_frame(gui.get_image())
         gui.show()
 
 

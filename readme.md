@@ -23,3 +23,9 @@ This repository is mainly about basic physical simulation, such as mass-spring s
 |fluid|jelly|snow|
 |--|--|--|
 | <img src=./video/fluid.gif/> | <img src=./video/jelly.gif/> |<img src=./video/snow.gif>|
+
+<h4 align=center>3DMPM with Collision Treatment </h4>
+
+<p align=center>
+ <img src=./video/3dmpm_collision.gif/>
+</p>
