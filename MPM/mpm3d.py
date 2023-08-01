@@ -12,26 +12,25 @@ ti.init(arch=ti.gpu)
 
 # dim, n_grid, steps, dt = 2, 128, 20, 2e-4
 # dim, n_grid, steps, dt = 2, 256, 32, 1e-4
-dim, n_grid, steps, dt = 3, 64, 25, 1e-4
+dim, n_grid, steps, dt = 3, 32, 25, 4e-4
 # dim, n_grid, steps, dt = 3, 64, 25, 2e-4
 # dim, n_grid, steps, dt = 3, 128, 25, 8e-5
 
-# ply2 = PlyImporter("/Users/YZY/g201/MPM/frames/mpm3d_000000.ply")
-ply3 = PlyImporter("/Users/YZY/g201/MPM/model/bunny.ply")
+# ply3 = PlyImporter("/Users/YZY/g201/MPM/frames/mpm3d_000000.ply")
+# ply3 = PlyImporter("/Users/YZY/g201/MPM/model/bunny.ply")
 
-# n_particles = n_grid**dim // 2**(dim - 1)
-n_particles = ply3.get_count()
-print(n_particles)
-# exit(0)
+n_particles = n_grid**dim // 2**(dim - 1)
+# n_particles = ply3.get_count()
+
 dx = 1 / n_grid
 inv_dx = n_grid
 p_rho = 1
 # p_vol = (dx * 0.5)**2
-p_vol = (dx * 0.5)**dim
+p_vol = (dx * 0.5)**2
 p_mass = p_vol * p_rho
 gravity = 9.8
 bound = 3
-E, nu = 40, 0.2
+E, nu = 1000, 0.2
 mu, la = E / (2 * (1 + nu)), E * nu / ((1 + nu) * (1 - 2 * nu))
 
 F_x = ti.Vector.field(dim, float, n_particles)
@@ -87,7 +86,7 @@ def Boundary():
     for I in ti.grouped(F_grid_m):
         if F_grid_m[I] > 0:
             F_grid_v[I] /= F_grid_m[I]
-        F_grid_v[I][1] -= dt * gravity
+            F_grid_v[I][1] -= dt * gravity
 
         cond = (I < bound) & (F_grid_v[I] <
                               0) | (I > n_grid - bound) & (F_grid_v[I] > 0)
@@ -134,7 +133,7 @@ def substep():
 @ti.kernel
 def init():
     for i in range(n_particles):
-        # F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.15
+        F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.2
         # F_J[i] = 1
         F[i] = ti.Matrix.identity(float, dim)
 
@@ -159,7 +158,7 @@ def T(a):
 
 def main():
     init()
-    F_x.from_numpy(ply3.get_array())
+    # F_x.from_numpy(ply3.get_array())
     gui = ti.GUI("MPM3D", background_color=0x112F41)
     while gui.running and not gui.get_event(gui.ESCAPE):
         for _ in range(steps):

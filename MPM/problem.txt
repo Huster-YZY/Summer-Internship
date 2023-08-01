@@ -1,6 +1,5 @@
 1. numerical fracture
-2. why choose 3 as the transfer expand?
-3. How to derive MLS-MPM 's tensor formulation?
-(Go to read the paper of APIC and MLS-MPM)
-4. What's the difference between MLS-MPM and original MPM?
-5. How to extend my code to 3D?
+✅2. How to extend my code to 3D?
+3.How to handel collision from different material.
+4. How to exert constraints?
+5. How to uniformly sample the 3D model's Volume?
