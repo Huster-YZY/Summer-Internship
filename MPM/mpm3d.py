@@ -215,7 +215,7 @@ def main():
         # also can be replace by ti.ui.Scene()
         gui.circle(ball_center[0], radius=45, color=0x068587)
         gui.circles(T(pos), radius=1.5, color=0xED553B)
-        video_manager.write_frame(gui.get_image())
+        # video_manager.write_frame(gui.get_image())
         gui.show()
 
 
