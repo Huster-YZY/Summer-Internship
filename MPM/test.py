@@ -1,2 +1,9 @@
-a = ((1, 2, 3, 4, 5, 6), )
-c = [[x, y, z] for x, y, z in a]
+import taichi as ti
+import numpy as np
+
+ti.init(arch=ti.cpu)
+
+a = np.array([(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)])
+b = np.array([[0, 1, 2]])
+
+print(ti.Vector(a[0]))
