@@ -35,3 +35,12 @@ This repository is mainly about basic physical simulation, such as mass-spring s
 <p align=center>
  <img src=./video/model.gif/ height=300>
 </p>
+
+
+<h4 align=center>Signed Distance Field</h4>
+
+The results are computed by using [Mesh2SDF](https://github.com/wang-ps/mesh2sdf).
+
+|bunny|dragon|
+|--|--|
+| <img src=./video/bunny_sdf.gif/> | <img src=./video/dragon_sdf.gif/> |
