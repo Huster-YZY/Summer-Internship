@@ -39,7 +39,7 @@ def load_mesh(filename):
     vertex_length = len(attrib.vertices) // 3
 
     for i in range(vertex_length):
-        vertices[i + 1] = 100 * ti.Vector([
+        vertices[i] = ti.Vector([
             attrib.vertices[i * 3], attrib.vertices[i * 3 + 1],
             attrib.vertices[i * 3 + 2]
         ])
@@ -75,4 +75,5 @@ def main():
 if __name__ == "__main__":
     filename = './model/block.obj'
     load_mesh(filename)
+    print("Load Successfully. Rendering ……")
     main()
