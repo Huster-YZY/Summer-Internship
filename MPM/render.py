@@ -1,9 +1,9 @@
 import taichi as ti
 import numpy as np
-import tinyobjloader
 import sys
 import time
 from tqdm import tqdm
+import trimesh
 
 ti.init(arch=ti.cpu)
 
@@ -24,43 +24,53 @@ rotation_matrix = ti.Matrix.field(3, 3, dtype=float, shape=())
 PI = 3.1415926
 
 
-def load_mesh(filename, scale_ratio=5.0):
-    reader = tinyobjloader.ObjReader()
-    ret = reader.ParseFromFile(filename)
-    if ret == False:
-        print("Warn:", reader.Warning())
-        print("Err:", reader.Error())
-        print("Failed to load : ", filename)
-        sys.exit(-1)
+def load_mesh_fast(filename, scale_ratio=1.0):
+    mesh = trimesh.load(filename, force='mesh')
+    num_vertices[None] = len(mesh.vertices)
+    for i, vertex in enumerate(mesh.vertices):
+        vertices[i] = ti.Vector(scale_ratio * vertex)
+    for i, face in enumerate(mesh.faces):
+        for j in range(3):
+            indices[3 * i + j] = face[j]
 
-    # Load Vertices
-    attrib = reader.GetAttrib()
-    assert len(attrib.vertices) % 3 == 0
-    vertex_length = len(attrib.vertices) // 3
-    num_vertices[None] = vertex_length
 
-    for i in tqdm(range(vertex_length)):
-        vertices[i] = scale_ratio * ti.Vector([
-            attrib.vertices[i * 3], attrib.vertices[i * 3 + 1],
-            attrib.vertices[i * 3 + 2]
-        ])
+# def load_mesh(filename, scale_ratio=5.0):
+#     reader = tinyobjloader.ObjReader()
+#     ret = reader.ParseFromFile(filename)
+#     if ret == False:
+#         print("Warn:", reader.Warning())
+#         print("Err:", reader.Error())
+#         print("Failed to load : ", filename)
+#         sys.exit(-1)
 
-    #Load Mesh Indices
-    shapes = reader.GetShapes()
-    offset = 0
-    for shape in shapes:
-        assert len(shape.mesh.indices) % 3 == 0
-        faces_length = len(shape.mesh.indices) // 3
+#     # Load Vertices
+#     attrib = reader.GetAttrib()
+#     assert len(attrib.vertices) % 3 == 0
+#     vertex_length = len(attrib.vertices) // 3
+#     num_vertices[None] = vertex_length
 
-        #speed bottleneck
-        for i in tqdm(range(faces_length)):
-            indices[offset + i * 3] = shape.mesh.indices[i * 3].vertex_index
-            indices[offset + i * 3 + 1] = \
-                shape.mesh.indices[i * 3 +1].vertex_index
-            indices[offset + i * 3 + 2] = \
-                shape.mesh.indices[i * 3 +2].vertex_index
+#     for i in tqdm(range(vertex_length)):
+#         vertices[i] = scale_ratio * ti.Vector([
+#             attrib.vertices[i * 3], attrib.vertices[i * 3 + 1],
+#             attrib.vertices[i * 3 + 2]
+#         ])
 
-        offset += faces_length * 3
+#     #Load Mesh Indices
+#     shapes = reader.GetShapes()
+#     offset = 0
+#     for shape in shapes:
+#         assert len(shape.mesh.indices) % 3 == 0
+#         faces_length = len(shape.mesh.indices) // 3
+
+#         #speed bottleneck
+#         for i in tqdm(range(faces_length)):
+#             indices[offset + i * 3] = shape.mesh.indices[i * 3].vertex_index
+#             indices[offset + i * 3 + 1] = \
+#                 shape.mesh.indices[i * 3 +1].vertex_index
+#             indices[offset + i * 3 + 2] = \
+#                 shape.mesh.indices[i * 3 +2].vertex_index
+
+#         offset += faces_length * 3
 
 
 @ti.kernel
@@ -73,10 +83,10 @@ def rotate(ang_x: float, ang_y: float, ang_z: float):
         vertices[i] = rotation_matrix[None] @ vertices[i]
 
 
-result_dir = "../video"
-video_manager = ti.tools.VideoManager(output_dir=result_dir,
-                                      framerate=60,
-                                      automatic_build=True)
+# result_dir = "../video"
+# video_manager = ti.tools.VideoManager(output_dir=result_dir,
+#                                       framerate=60,
+#                                       automatic_build=True)
 
 
 def main():
@@ -92,14 +102,14 @@ def main():
         angle = 0.05
         rotate(0, 0, angle)
         canvas.scene(scene)
-        video_manager.write_frame(window.get_image_buffer_as_numpy())
+        # video_manager.write_frame(window.get_image_buffer_as_numpy())
         window.show()
 
 
 if __name__ == "__main__":
-    filename = './model/bunny.obj'
+    filename = './model/cow.obj'
     start_time = time.time()
-    load_mesh(filename)
+    load_mesh_fast(filename)
     use_time = time.time() - start_time
     print(f"Load Successfully.\nTime Consumption:{use_time}s")
     main()
