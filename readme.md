@@ -29,3 +29,9 @@ This repository is mainly about basic physical simulation, such as mass-spring s
 <p align=center>
  <img src=./video/3dmpm_collision.gif/>
 </p>
+
+<h4 align=center>Load and visualize the 3D Model  </h4>
+
+<p align=center>
+ <img src=./video/model.gif/ height=300>
+</p>
