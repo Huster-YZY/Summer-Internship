@@ -6,9 +6,11 @@ else:
 
 import numpy as np
 from plyImporter import PlyImporter
+
 import taichi as ti
 
 ti.init(arch=ti.cpu)
+from render import load_mesh_fast, gen_point_cloud, get_sdf, vertices, indices
 
 # dim, n_grid, steps, dt = 2, 128, 20, 2e-4
 # dim, n_grid, steps, dt = 2, 256, 32, 1e-4
@@ -41,12 +43,16 @@ F = ti.Matrix.field(dim, dim, float, n_particles)
 
 F_grid_v = ti.Vector.field(dim, float, (n_grid, ) * dim)
 F_grid_m = ti.field(float, (n_grid, ) * dim)
+pos = ti.Vector.field(dim, dtype=float, shape=(n_grid, ) * dim)
+SDF = ti.field(float, (n_grid, ) * dim)
 
-co_position = ti.Vector.field(dim, float, ())
-co_v = ti.Vector.field(dim, float, ())
+# co_position = ti.Vector.field(dim, float, 1)
+# co_v = ti.Vector.field(dim, float, 1)
 fe = 0.5  #friction coefficient
 
 neighbour = (3, ) * dim
+ORIANGE = (0.9294117647058824, 0.3333333333333333, 0.23137254901960785)
+PI = 3.1415926
 
 
 @ti.func
@@ -98,17 +104,35 @@ def Boundary():
             F_grid_v[I][1] -= dt * gravity
 
         #Central Ball Collision
-        grid_pos = I * dx
-        d = grid_pos - co_position[None]
-        if d.norm_sqr() <= 0.01:
-            dir = d.normalized()
-            v_ref = F_grid_v[I] - co_v[None]
-            vn = v_ref.dot(dir)
-            if vn < 0.0:
-                vt = v_ref - vn * dir
-                v_ref = vt + fe * vn * vt.normalized()
-                F_grid_v[I] = v_ref + co_v[None]
+        # grid_pos = I * dx
+        # d = grid_pos - co_position[0]
+        # if d.norm_sqr() <= 0.01:
+        #     n = d.normalized()
+        #     v_ref = F_grid_v[I] - co_v[0]
+        #     vn = v_ref.dot(n)
+        #     if vn < 0.0:
+        #         vt = v_ref - vn * n
+        #         v_ref = vt + fe * vn * vt.normalized()
+        #         F_grid_v[I] = v_ref + co_v[0]
 
+        #SDF collision solver
+        if SDF[I] < 0.0:
+            i, j, k = I[0], I[1], I[2]
+            dx = (SDF[i + 1, j, k] - SDF[i - 1, j, k]) * 0.5 * inv_dx
+            dy = (SDF[i, j + 1, k] - SDF[i, j - 1, k]) * 0.5 * inv_dx
+            dz = (SDF[i, j, k + 1] - SDF[i, j, k - 1]) * 0.5 * inv_dx
+            grad = ti.Vector([dx, dy, dz])
+            n = grad.normalized()
+
+            #TIPS: Now we assume the object is static
+            v_ref = F_grid_v[I]
+            vn = v_ref.dot(n)
+            if vn < 0.0:
+                vt = v_ref - vn * n
+                v_ref = vt + fe * vn * vt.normalized()
+                F_grid_v[I] = v_ref
+
+        #TODO:add friction between material and the floor
         # Box Constraint
         cond = (I < bound) & (F_grid_v[I] <
                               0) | (I > n_grid - bound) & (F_grid_v[I] > 0)
@@ -154,10 +178,14 @@ def substep():
 
 @ti.kernel
 def init():
-    co_position[None] = ti.Vector([0.5, 0.1, 0.5])
-    co_v[None] = ti.Vector([0.0, 1.0, 0.0])
+    # co_position[0] = ti.Vector([0.2, 0.1, 0.2])
+    # co_v[0] = ti.Vector([0.0, 0.0, 0.0])
     for i in range(n_particles):
         F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.3
+        #!!pay attention to the grid index
+        #!!if computed index is negative, then may lead to crush!!!
+        F_x[i][0] -= 0.3
+        F_x[i][2] -= 0.3
         F_x[i][1] += 0.2
         # F_J[i] = 1
         F[i] = ti.Matrix.identity(float, dim)
@@ -183,10 +211,25 @@ def T(a):
 
 @ti.kernel
 def update_co_position():
-    t = co_position[None][1] + dt * co_v[None][1]
+    t = co_position[0][1] + dt * co_v[0][1]
     if t >= 1.0 or t < 0.1:
-        co_v[None] *= -1.0
-    co_position[None] += dt * co_v[None]
+        co_v[0] *= -1.0
+    co_position[0] += dt * co_v[0]
+
+
+@ti.kernel
+def init_pos():
+    for i in ti.grouped(pos):
+        pos[i] = i + 0.5
+
+
+def init_sdf():
+    init_pos()
+    t = pos.to_numpy().reshape((-1, 3))
+    gen_point_cloud()
+    dis = get_sdf(t).reshape(SDF.shape)
+    SDF.from_numpy(dis)
+    print("Signed Distance Field has been initialized.")
 
 
 result_dir = "../video"
@@ -197,26 +240,55 @@ video_manager = ti.tools.VideoManager(output_dir=result_dir,
 
 def main():
     init()
+    load_mesh_fast('./model/bunny.obj', scale_ratio=2.0)
+    init_sdf()
     # F_x.from_numpy(ply3.get_array())
-    gui = ti.GUI("MPM3D", background_color=0x112F41)
 
-    while gui.running and not gui.get_event(gui.ESCAPE):
+    # gui = ti.GUI("MPM3D", background_color=0x112F41)
+    window = ti.ui.Window("3D Render", (1024, 1024), vsync=True)
+    canvas = window.get_canvas()
+    canvas.set_background_color((1, 1, 1))
+    scene = ti.ui.Scene()
+    camera = ti.ui.Camera()
+    i = 0
+
+    # transform(0.2, 0.0, 0.2)
+
+    while window.running:
+        i = (i + 1) % 180
+        angle = float(i) * PI / 180.0
+        # camera.position(3 * ti.cos(angle), 0.0, 3 * ti.sin(angle))
+        camera.position(0.2, 0.0, 2.5)
+        camera.lookat(0.0, 0.0, 0.0)
+
+        scene.set_camera(camera)
+        scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
+        scene.ambient_light((0.5, 0.5, 0.5))
 
         for _ in range(steps):
             substep()
-            update_co_position()
-        pos = F_x.to_numpy()
-        ball_center = T(np.array([co_position.to_numpy()]))
-        if export_file:
-            writer = ti.tools.PLYWriter(num_vertices=n_particles)
-            writer.add_vertex_pos(pos[:, 0], pos[:, 1], pos[:, 2])
-            writer.export_frame_ascii(gui.frame, export_file)
+            # update_co_position()
+
+        # pos = F_x.to_numpy()
+        # ball_center = T(np.array([co_position.to_numpy()]))
+
+        scene.particles(F_x, radius=0.001, color=ORIANGE)
+        # scene.particles(co_position, radius=0.05)
+        scene.mesh(vertices, indices)
+
+        canvas.scene(scene)
+        window.show()
+
+        # if export_file:
+        #     writer = ti.tools.PLYWriter(num_vertices=n_particles)
+        #     writer.add_vertex_pos(pos[:, 0], pos[:, 1], pos[:, 2])
+        #     writer.export_frame_ascii(gui.frame, export_file)
 
         # also can be replace by ti.ui.Scene()
-        gui.circle(ball_center[0], radius=45, color=0x068587)
-        gui.circles(T(pos), radius=1.5, color=0xED553B)
+        # gui.circle(ball_center[0], radius=45, color=0x068587)
+        # gui.circles(T(pos), radius=1.5, color=0xED553B)
         # video_manager.write_frame(gui.get_image())
-        gui.show()
+        # gui.show()
 
 
 if __name__ == "__main__":

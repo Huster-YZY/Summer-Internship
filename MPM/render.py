@@ -4,8 +4,9 @@ import sys
 import time
 from tqdm import tqdm
 import trimesh
+import mesh_to_sdf as md
 
-ti.init(arch=ti.cpu)
+# ti.init(arch=ti.cpu)
 
 MAX_VERTEX_NUM = 25000
 FACE_NUM = 50000
@@ -22,10 +23,16 @@ indices = ti.field(dtype=int, shape=MAX_FACE_NUM)
 num_vertices = ti.field(dtype=int, shape=())
 rotation_matrix = ti.Matrix.field(3, 3, dtype=float, shape=())
 PI = 3.1415926
+pld = None
+mesh = None
 
 
 def load_mesh_fast(filename, scale_ratio=1.0):
+    global mesh
     mesh = trimesh.load(filename, force='mesh')
+
+    mesh.vertices += (0.2, 0.0, 0.2)
+
     num_vertices[None] = len(mesh.vertices)
     for i, vertex in enumerate(mesh.vertices):
         vertices[i] = ti.Vector(scale_ratio * vertex)
@@ -34,43 +41,14 @@ def load_mesh_fast(filename, scale_ratio=1.0):
             indices[3 * i + j] = face[j]
 
 
-# def load_mesh(filename, scale_ratio=5.0):
-#     reader = tinyobjloader.ObjReader()
-#     ret = reader.ParseFromFile(filename)
-#     if ret == False:
-#         print("Warn:", reader.Warning())
-#         print("Err:", reader.Error())
-#         print("Failed to load : ", filename)
-#         sys.exit(-1)
+def gen_point_cloud():
+    global pld
+    pld = md.get_surface_point_cloud(mesh)
 
-#     # Load Vertices
-#     attrib = reader.GetAttrib()
-#     assert len(attrib.vertices) % 3 == 0
-#     vertex_length = len(attrib.vertices) // 3
-#     num_vertices[None] = vertex_length
 
-#     for i in tqdm(range(vertex_length)):
-#         vertices[i] = scale_ratio * ti.Vector([
-#             attrib.vertices[i * 3], attrib.vertices[i * 3 + 1],
-#             attrib.vertices[i * 3 + 2]
-#         ])
-
-#     #Load Mesh Indices
-#     shapes = reader.GetShapes()
-#     offset = 0
-#     for shape in shapes:
-#         assert len(shape.mesh.indices) % 3 == 0
-#         faces_length = len(shape.mesh.indices) // 3
-
-#         #speed bottleneck
-#         for i in tqdm(range(faces_length)):
-#             indices[offset + i * 3] = shape.mesh.indices[i * 3].vertex_index
-#             indices[offset + i * 3 + 1] = \
-#                 shape.mesh.indices[i * 3 +1].vertex_index
-#             indices[offset + i * 3 + 2] = \
-#                 shape.mesh.indices[i * 3 +2].vertex_index
-
-#         offset += faces_length * 3
+def get_sdf(x):
+    global pld
+    return pld.get_sdf_in_batches(x)
 
 
 @ti.kernel
@@ -81,6 +59,13 @@ def rotate(ang_x: float, ang_y: float, ang_z: float):
 
     for i in range(num_vertices[None]):
         vertices[i] = rotation_matrix[None] @ vertices[i]
+
+
+@ti.kernel
+def transform(x: float, y: float, z: float):
+    bias = ti.Vector([x, y, z])
+    for i in range(num_vertices[None]):
+        vertices[i] += bias
 
 
 # result_dir = "../video"

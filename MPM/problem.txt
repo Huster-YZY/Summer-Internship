@@ -1,5 +1,5 @@
 1. numerical fracture
 ✅2. How to extend my code to 3D?
-3.How to handel collision from different material.
+✅3.How to handel collision from different material.
 4. How to exert constraints?
 5. How to uniformly sample the 3D model's Volume?
