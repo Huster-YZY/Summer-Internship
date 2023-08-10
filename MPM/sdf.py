@@ -26,17 +26,25 @@ rotation_matrix = ti.Matrix.field(3, 3, dtype=float, shape=())
 PI = 3.1415926
 pld = None
 mesh = None
+size = None
+level = None
+num_grid = None
 
 
 def load_mesh_fast(filename, n_grid, scale_ratio=1.0):
     global mesh
     global SignedDistanceField
+    global size
+    global level
+    global num_grid
+
     mesh = trimesh.load(filename, force='mesh')
     size = n_grid * 2
     level = 2 / size
+    num_grid = n_grid
     t0 = time.time()
 
-    mesh.vertices *= 0.5
+    mesh.vertices *= 2
     mesh.vertices[:, 0] += 0.3
 
     sdf, _ = mesh2sdf.compute(mesh.vertices,
@@ -79,11 +87,21 @@ def rotate(ang_x: float, ang_y: float, ang_z: float):
         vertices[i] = rotation_matrix[None] @ vertices[i]
 
 
-@ti.kernel
+@ti.func
 def transform(x: float, y: float, z: float):
     bias = ti.Vector([x, y, z])
     for i in range(num_vertices[None]):
         vertices[i] += bias
+
+
+def update_sdf():
+    sdf, _ = mesh2sdf.compute(vertices.to_numpy()[:num_vertices[None]],
+                              mesh.faces,
+                              size,
+                              fix=True,
+                              level=level,
+                              return_mesh=True)
+    return sdf[-num_grid:, -num_grid:, -num_grid:]
 
 
 # result_dir = "../video"

@@ -3,3 +3,4 @@
 ✅3.How to handel collision from different material.
 4. How to exert constraints?
 5. How to uniformly sample the 3D model's Volume?
+6. What's meaning of the "1" ?

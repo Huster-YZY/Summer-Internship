@@ -6,11 +6,11 @@ else:
 
 import numpy as np
 from plyImporter import PlyImporter
-
+from tqdm import tqdm
 import taichi as ti
 
-ti.init(arch=ti.metal)
-from sdf import load_mesh_fast, gen_point_cloud, get_sdf, vertices, indices
+ti.init(arch=ti.cpu)
+from sdf import load_mesh_fast, transform, update_sdf, vertices, indices
 
 # dim, n_grid, steps, dt = 2, 128, 20, 2e-4
 # dim, n_grid, steps, dt = 2, 256, 32, 1e-4
@@ -52,7 +52,7 @@ ref_point = ti.Vector([0.3, 0.0, 0.0])
 normal = ti.Vector([1.0, 1.0, 1.0]).normalized()
 
 # co_position = ti.Vector.field(dim, float, 1)
-# co_v = ti.Vector.field(dim, float, 1)
+co_v = ti.Vector.field(dim, dtype=float, shape=())
 fe = 0.0  #friction coefficient
 
 neighbour = (3, ) * dim
@@ -184,7 +184,7 @@ def substep():
 @ti.kernel
 def init():
     # co_position[0] = ti.Vector([0.2, 0.1, 0.2])
-    # co_v[0] = ti.Vector([0.0, 0.0, 0.0])
+    co_v[None] = ti.Vector([0.0, 1.0, 0.0])
     for i in range(n_particles):
         F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.3
         #!!pay attention to the grid index
@@ -216,10 +216,12 @@ def T(a):
 
 @ti.kernel
 def update_co_position():
-    t = co_position[0][1] + dt * co_v[0][1]
-    if t >= 1.0 or t < 0.1:
-        co_v[0] *= -1.0
-    co_position[0] += dt * co_v[0]
+    # t = co_position[0][1] + dt * co_v[0][1]
+    # if t >= 1.0 or t < 0.1:
+    #     co_v[0] *= -1.0
+    # co_position[0] += dt * co_v[0]
+    x, y, z = co_v[None] * dt
+    transform(x, y, z)
 
 
 @ti.kernel
@@ -263,7 +265,7 @@ video_manager = ti.tools.VideoManager(output_dir=result_dir,
 
 def main():
     init()
-    SignedDistanceField = load_mesh_fast('./model/dragon.obj',
+    SignedDistanceField = load_mesh_fast('./model/cube.obj',
                                          n_grid,
                                          scale_ratio=1.0)
     print(SignedDistanceField.shape)
@@ -293,10 +295,12 @@ def main():
         scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
         scene.ambient_light((0.5, 0.5, 0.5))
 
-        for _ in range(steps):
+        for _ in tqdm(range(steps)):
             # pass
             substep()
-            # update_co_position()
+            update_co_position()
+            new_sdf = update_sdf()
+            SDF.from_numpy(new_sdf)
 
         # pos = F_x.to_numpy()
         # ball_center = T(np.array([co_position.to_numpy()]))
@@ -308,7 +312,7 @@ def main():
         scene.mesh(vertices, indices)
 
         canvas.scene(scene)
-        video_manager.write_frame(window.get_image_buffer_as_numpy())
+        # video_manager.write_frame(window.get_image_buffer_as_numpy())
         window.show()
 
         # if export_file:
