@@ -220,7 +220,7 @@ def update_co_position():
     # if t >= 1.0 or t < 0.1:
     #     co_v[0] *= -1.0
     # co_position[0] += dt * co_v[0]
-    x, y, z = co_v[None] * dt
+    x, y, z = co_v[None] * dt * steps
     transform(x, y, z)
 
 
@@ -298,9 +298,9 @@ def main():
         for _ in tqdm(range(steps)):
             # pass
             substep()
-            update_co_position()
-            new_sdf = update_sdf()
-            SDF.from_numpy(new_sdf)
+        update_co_position()
+        new_sdf = update_sdf()
+        SDF.from_numpy(new_sdf)
 
         # pos = F_x.to_numpy()
         # ball_center = T(np.array([co_position.to_numpy()]))
@@ -312,7 +312,7 @@ def main():
         scene.mesh(vertices, indices)
 
         canvas.scene(scene)
-        # video_manager.write_frame(window.get_image_buffer_as_numpy())
+        video_manager.write_frame(window.get_image_buffer_as_numpy())
         window.show()
 
         # if export_file:
