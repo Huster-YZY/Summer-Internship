@@ -19,9 +19,9 @@ void initialize(std::string filename)
         return;
     }
     // Output for test
-    std::cout << loader.LoadedVertices.size() << std::endl;
-    std::cout << loader.LoadedVertices[1].Position << std::endl;
-    std::cout << loader.LoadedVertices[1].Normal << std::endl;
+    // std::cout << loader.LoadedVertices.size() << std::endl;
+    // std::cout << loader.LoadedVertices[1].Position << std::endl;
+    // std::cout << loader.LoadedVertices[1].Normal << std::endl;
 
     int num_faces = loader.LoadedMeshes[0].Vertices.size() / 3;
     for (int i = 0; i < num_faces; i++)
@@ -129,7 +129,7 @@ void test(std::string filename)
 }
 int main()
 {
-    std::string filename = "../model/dragon.obj";
+    std::string filename = "../model/cube.obj";
     initialize(filename);
     // test(filename);
 
@@ -137,7 +137,7 @@ int main()
     tmd::TriangleMeshDistance mesh_distance(vertices, triangles);
 
     // Query TriangleMeshDistance
-    x = 1.0, y = 0.0, z = 0.0;
+    x = 0.0, y = 0.0, z = 0.0;
     tmd::Result result = mesh_distance.signed_distance({x, y, z});
 
     // Print result

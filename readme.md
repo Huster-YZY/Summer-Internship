@@ -44,3 +44,11 @@ The results are computed by using [Mesh2SDF](https://github.com/wang-ps/mesh2sdf
 |bunny|dragon|
 |--|--|
 | <img src=./video/bunny_sdf.gif/> | <img src=./video/dragon_sdf.gif/> |
+
+
+<h4 align=center>Collision Objects</h4>
+
+
+<p align=center>
+ <img src=./video/collision_static.gif/>
+</p>

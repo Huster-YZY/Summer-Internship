@@ -9,8 +9,8 @@ from plyImporter import PlyImporter
 
 import taichi as ti
 
-ti.init(arch=ti.cpu)
-from render import load_mesh_fast, gen_point_cloud, get_sdf, vertices, indices
+ti.init(arch=ti.metal)
+from sdf import load_mesh_fast, gen_point_cloud, get_sdf, vertices, indices
 
 # dim, n_grid, steps, dt = 2, 128, 20, 2e-4
 # dim, n_grid, steps, dt = 2, 256, 32, 1e-4
@@ -45,10 +45,15 @@ F_grid_v = ti.Vector.field(dim, float, (n_grid, ) * dim)
 F_grid_m = ti.field(float, (n_grid, ) * dim)
 pos = ti.Vector.field(dim, dtype=float, shape=(n_grid, ) * dim)
 SDF = ti.field(float, (n_grid, ) * dim)
+CDF = ti.Vector.field(dim, dtype=float, shape=n_grid**dim)
+
+grid_pos = ti.Vector.field(dim, dtype=float, shape=n_grid**dim)
+ref_point = ti.Vector([0.3, 0.0, 0.0])
+normal = ti.Vector([1.0, 1.0, 1.0]).normalized()
 
 # co_position = ti.Vector.field(dim, float, 1)
 # co_v = ti.Vector.field(dim, float, 1)
-fe = 0.5  #friction coefficient
+fe = 0.0  #friction coefficient
 
 neighbour = (3, ) * dim
 ORIANGE = (0.9294117647058824, 0.3333333333333333, 0.23137254901960785)
@@ -220,16 +225,34 @@ def update_co_position():
 @ti.kernel
 def init_pos():
     for i in ti.grouped(pos):
-        pos[i] = i + 0.5
+        pos[i] = i * dx
+        # SDF[i] = (pos[i] - ref_point).dot(normal)
 
 
-def init_sdf():
+def init_sdf(SignedDistanceField):
     init_pos()
+    SDF.from_numpy(SignedDistanceField)
+
     t = pos.to_numpy().reshape((-1, 3))
-    gen_point_cloud()
-    dis = get_sdf(t).reshape(SDF.shape)
-    SDF.from_numpy(dis)
-    print("Signed Distance Field has been initialized.")
+    grid_pos.from_numpy(t)
+
+    # dis = SDF.to_numpy().reshape((-1))
+
+    #use mesh_to_sdf compute the SDF
+    # gen_point_cloud()
+    # dis = get_sdf(t)
+    # SDF.from_numpy(dis.reshape(SDF.shape))
+
+    print(
+        "************Signed Distance Field has been initialized.************")
+
+    #visualize SDF
+    # low = dis.min()
+    # high = dis.max()
+    # colors = (dis - low) / (high - low)
+    # for i, c in enumerate(colors):
+    #     CDF[i] = ti.Vector([c, c, c])
+    # print("************Color Distance Field has been initialized.************")
 
 
 result_dir = "../video"
@@ -240,8 +263,13 @@ video_manager = ti.tools.VideoManager(output_dir=result_dir,
 
 def main():
     init()
-    load_mesh_fast('./model/bunny.obj', scale_ratio=2.0)
-    init_sdf()
+    SignedDistanceField = load_mesh_fast('./model/dragon.obj',
+                                         n_grid,
+                                         scale_ratio=1.0)
+    print(SignedDistanceField.shape)
+
+    init_sdf(SignedDistanceField)
+
     # F_x.from_numpy(ply3.get_array())
 
     # gui = ti.GUI("MPM3D", background_color=0x112F41)
@@ -255,17 +283,18 @@ def main():
     # transform(0.2, 0.0, 0.2)
 
     while window.running:
-        i = (i + 1) % 180
+        i = i + 1
         angle = float(i) * PI / 180.0
-        # camera.position(3 * ti.cos(angle), 0.0, 3 * ti.sin(angle))
-        camera.position(0.2, 0.0, 2.5)
-        camera.lookat(0.0, 0.0, 0.0)
+        # camera.position(5.0 * ti.cos(angle), 0.0, 5.0 * ti.sin(angle))
+        camera.position(0.2 + ti.cos(angle), 0.8, 2.0 + ti.sin(angle))
+        camera.lookat(0.2, 0.0, 0.2)
 
         scene.set_camera(camera)
         scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
         scene.ambient_light((0.5, 0.5, 0.5))
 
         for _ in range(steps):
+            # pass
             substep()
             # update_co_position()
 
@@ -273,10 +302,13 @@ def main():
         # ball_center = T(np.array([co_position.to_numpy()]))
 
         scene.particles(F_x, radius=0.001, color=ORIANGE)
-        # scene.particles(co_position, radius=0.05)
+
+        # scene.particles(grid_pos, radius=0.005)
+
         scene.mesh(vertices, indices)
 
         canvas.scene(scene)
+        video_manager.write_frame(window.get_image_buffer_as_numpy())
         window.show()
 
         # if export_file:

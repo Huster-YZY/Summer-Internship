@@ -4,3 +4,5 @@ MPM/__pycache__
 a.out
 video/frames
 frames
+.vscode
+log
