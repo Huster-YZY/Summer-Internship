@@ -1,6 +1,8 @@
 # Introduction
 
-This repository is mainly about basic physical simulation, such as mass-spring system, SPH, MPM and so on.This is also my learning record of GAMES201.
+This repository is mainly about basic physical simulation, such as mass-spring system, FEM and MPM. This is also a record of my summer internship.
+
+If you want to excute my code, please install the [Taichi](https://github.com/taichi-dev/taichi) at first.
 
 <h4 align=center>Julia Fractal</h4>
 <p align=center>
