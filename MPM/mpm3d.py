@@ -184,7 +184,7 @@ def substep():
 @ti.kernel
 def init():
     # co_position[0] = ti.Vector([0.2, 0.1, 0.2])
-    co_v[None] = ti.Vector([1.0, 0.0, 1.0])
+    co_v[None] = ti.Vector([0.0, 1.0, 0.0])
     for i in range(n_particles):
         F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.3
         #!!pay attention to the grid index
@@ -223,7 +223,7 @@ def update_co_position():
     x, y, z = co_v[None] * dt * steps
     sdf.transform(x, y, z)
 
-    t = sdf.reverse_offset_vector[None][0]
+    t = sdf.reverse_offset_vector[None][1]
     if t > 1.1 or t < -0.1:
         co_v[None] *= -1
 
@@ -293,7 +293,7 @@ def main():
         angle = float(i) * PI / 180.0
         # camera.position(5.0 * ti.cos(angle), 0.0, 5.0 * ti.sin(angle))
         # camera.position(0.2 + ti.cos(angle), 0.8, 2.0 + ti.sin(angle))
-        camera.position(0.2, 4, 3.0)
+        camera.position(0.2, 0.5, 3.0)
         camera.lookat(0.2, 0.0, 0.2)
 
         scene.set_camera(camera)
