@@ -9,8 +9,8 @@ from plyImporter import PlyImporter
 from tqdm import tqdm
 import taichi as ti
 
-ti.init(arch=ti.cpu)
-from sdf import load_mesh_fast, transform, update_sdf, vertices, indices
+ti.init(arch=ti.metal)
+import sdf
 
 # dim, n_grid, steps, dt = 2, 128, 20, 2e-4
 # dim, n_grid, steps, dt = 2, 256, 32, 1e-4
@@ -130,12 +130,12 @@ def Boundary():
             n = grad.normalized()
 
             #TIPS: Now we assume the object is static
-            v_ref = F_grid_v[I]
+            v_ref = F_grid_v[I] - co_v[None]
             vn = v_ref.dot(n)
             if vn < 0.0:
                 vt = v_ref - vn * n
                 v_ref = vt + fe * vn * vt.normalized()
-                F_grid_v[I] = v_ref
+                F_grid_v[I] = v_ref + co_v[None]
 
         #TODO:add friction between material and the floor
         # Box Constraint
@@ -184,7 +184,7 @@ def substep():
 @ti.kernel
 def init():
     # co_position[0] = ti.Vector([0.2, 0.1, 0.2])
-    co_v[None] = ti.Vector([0.0, 1.0, 0.0])
+    co_v[None] = ti.Vector([1.0, 0.0, 1.0])
     for i in range(n_particles):
         F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.3
         #!!pay attention to the grid index
@@ -221,7 +221,11 @@ def update_co_position():
     #     co_v[0] *= -1.0
     # co_position[0] += dt * co_v[0]
     x, y, z = co_v[None] * dt * steps
-    transform(x, y, z)
+    sdf.transform(x, y, z)
+
+    t = sdf.reverse_offset_vector[None][0]
+    if t > 1.1 or t < -0.1:
+        co_v[None] *= -1
 
 
 @ti.kernel
@@ -238,7 +242,7 @@ def init_sdf(SignedDistanceField):
     t = pos.to_numpy().reshape((-1, 3))
     grid_pos.from_numpy(t)
 
-    # dis = SDF.to_numpy().reshape((-1))
+    # dis = SignedDistanceField.reshape((-1))
 
     #use mesh_to_sdf compute the SDF
     # gen_point_cloud()
@@ -265,9 +269,9 @@ video_manager = ti.tools.VideoManager(output_dir=result_dir,
 
 def main():
     init()
-    SignedDistanceField = load_mesh_fast('./model/cube.obj',
-                                         n_grid,
-                                         scale_ratio=1.0)
+    SignedDistanceField = sdf.load_mesh_fast('./model/cube.obj',
+                                             n_grid,
+                                             scale_ratio=1.0)
     print(SignedDistanceField.shape)
 
     init_sdf(SignedDistanceField)
@@ -282,24 +286,33 @@ def main():
     camera = ti.ui.Camera()
     i = 0
 
-    # transform(0.2, 0.0, 0.2)
+    # sdf.transform(0.2, 0.0, 0.2)
 
     while window.running:
         i = i + 1
         angle = float(i) * PI / 180.0
         # camera.position(5.0 * ti.cos(angle), 0.0, 5.0 * ti.sin(angle))
-        camera.position(0.2 + ti.cos(angle), 0.8, 2.0 + ti.sin(angle))
+        # camera.position(0.2 + ti.cos(angle), 0.8, 2.0 + ti.sin(angle))
+        camera.position(0.2, 4, 3.0)
         camera.lookat(0.2, 0.0, 0.2)
 
         scene.set_camera(camera)
         scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
         scene.ambient_light((0.5, 0.5, 0.5))
 
-        for _ in tqdm(range(steps)):
+        # for _ in tqdm(range(steps)):
+        for _ in range(steps):
             # pass
             substep()
+
         update_co_position()
-        new_sdf = update_sdf()
+
+        #old fashion sdf update manner
+        # new_sdf = sdf.update_sdf()
+
+        #update sdf by switching reference frame
+        new_sdf = sdf.switch_reference_frame_and_update_sdf(pos.to_numpy())
+
         SDF.from_numpy(new_sdf)
 
         # pos = F_x.to_numpy()
@@ -307,12 +320,12 @@ def main():
 
         scene.particles(F_x, radius=0.001, color=ORIANGE)
 
-        # scene.particles(grid_pos, radius=0.005)
+        # scene.particles(grid_pos, radius=0.005, per_vertex_color=CDF)
 
-        scene.mesh(vertices, indices)
+        scene.mesh(sdf.vertices, sdf.indices)
 
         canvas.scene(scene)
-        video_manager.write_frame(window.get_image_buffer_as_numpy())
+        # video_manager.write_frame(window.get_image_buffer_as_numpy())
         window.show()
 
         # if export_file:
