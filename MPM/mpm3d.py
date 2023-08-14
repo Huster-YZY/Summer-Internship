@@ -53,7 +53,7 @@ normal = ti.Vector([1.0, 1.0, 1.0]).normalized()
 
 # co_position = ti.Vector.field(dim, float, 1)
 co_v = ti.Vector.field(dim, dtype=float, shape=())
-fe = 0.0  #friction coefficient
+fe = 0.5  #friction coefficient
 
 neighbour = (3, ) * dim
 ORIANGE = (0.9294117647058824, 0.3333333333333333, 0.23137254901960785)
@@ -291,11 +291,14 @@ def main():
     while window.running:
         i = i + 1
         angle = float(i) * PI / 180.0
+
         # camera.position(5.0 * ti.cos(angle), 0.0, 5.0 * ti.sin(angle))
         # camera.position(0.2 + ti.cos(angle), 0.8, 2.0 + ti.sin(angle))
-        camera.position(0.2, 0.5, 3.0)
-        camera.lookat(0.2, 0.0, 0.2)
-
+        # camera.position(0.2, 4.0, 3.0)
+        # camera.lookat(0.2, 0.0, 0.2)
+        camera.track_user_inputs(window,
+                                 movement_speed=0.005,
+                                 hold_key=ti.ui.LMB)
         scene.set_camera(camera)
         scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
         scene.ambient_light((0.5, 0.5, 0.5))
