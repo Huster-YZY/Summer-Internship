@@ -21,7 +21,7 @@ dim, n_grid, steps, dt = 3, 32, 25, 4e-4
 # ply3 = PlyImporter("/Users/YZY/g201/MPM/frames/mpm3d_000000.ply")
 # ply3 = PlyImporter("/Users/YZY/g201/MPM/model/bunny.ply")
 
-n_particles = n_grid**dim // 2**(dim - 1)
+n_particles = n_grid**dim // 2**(dim - 1)  #8192
 # n_particles = ply3.get_count()
 
 dx = 1 / n_grid
@@ -38,7 +38,6 @@ mu, la = E / (2 * (1 + nu)), E * nu / ((1 + nu) * (1 - 2 * nu))
 F_x = ti.Vector.field(dim, float, n_particles)
 F_v = ti.Vector.field(dim, float, n_particles)
 F_C = ti.Matrix.field(dim, dim, float, n_particles)
-# F_J = ti.field(float, n_particles)
 F = ti.Matrix.field(dim, dim, float, n_particles)
 
 F_grid_v = ti.Vector.field(dim, float, (n_grid, ) * dim)
@@ -186,9 +185,9 @@ def init():
     # co_position[0] = ti.Vector([0.2, 0.1, 0.2])
     co_v[None] = ti.Vector([0.0, 1.0, 0.0])
     for i in range(n_particles):
-        F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.3
         #!!pay attention to the grid index
         #!!if computed index is negative, then may lead to crush!!!
+        F_x[i] = ti.Vector([ti.random() for _ in range(dim)]) * 0.4 + 0.3
         F_x[i][0] -= 0.3
         F_x[i][2] -= 0.3
         F_x[i][1] += 0.2

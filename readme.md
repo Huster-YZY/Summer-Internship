@@ -61,3 +61,10 @@ The results are computed by using [Mesh2SDF](https://github.com/wang-ps/mesh2sdf
 <p align=center>
  <img src=./video/dynamic_co.gif/>
 </p>
+
+<h4 align=center>Mesh to Points</h4>
+
+
+<p align=center>
+ <img src=./video/voxel.jpg/>
+</p>
