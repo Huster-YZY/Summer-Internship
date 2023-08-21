@@ -5,9 +5,11 @@ else:
     export_file = ""
 
 import numpy as np
-from plyImporter import PlyImporter
+# from plyImporter import PlyImporter
 from tqdm import tqdm
 import taichi as ti
+import skimage.measure
+import trimesh
 
 ti.init(arch=ti.metal)
 import sdf
@@ -267,6 +269,7 @@ video_manager = ti.tools.VideoManager(output_dir=result_dir,
 
 
 def main():
+    video_record = True
     init()
     SignedDistanceField = sdf.load_mesh_fast('./model/cube.obj',
                                              n_grid,
@@ -290,14 +293,18 @@ def main():
     while window.running:
         i = i + 1
         angle = float(i) * PI / 180.0
+        camera_mode = 2
 
-        # camera.position(5.0 * ti.cos(angle), 0.0, 5.0 * ti.sin(angle))
-        # camera.position(0.2 + ti.cos(angle), 0.8, 2.0 + ti.sin(angle))
-        # camera.position(0.2, 4.0, 3.0)
-        # camera.lookat(0.2, 0.0, 0.2)
-        camera.track_user_inputs(window,
-                                 movement_speed=0.005,
-                                 hold_key=ti.ui.LMB)
+        if camera_mode == 1:
+            camera.position(0.2, 0.0, 5.0)
+            camera.lookat(0.2, 0.0, 0.2)
+        elif camera_mode == 2:
+            camera.position(0.2 + ti.cos(angle), 0.8, 2.0 + ti.sin(angle))
+            camera.lookat(0.2, 0.0, 0.2)
+        else:
+            camera.track_user_inputs(window,
+                                     movement_speed=0.005,
+                                     hold_key=ti.ui.LMB)
         scene.set_camera(camera)
         scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
         scene.ambient_light((0.5, 0.5, 0.5))
@@ -323,11 +330,33 @@ def main():
         scene.particles(F_x, radius=0.001, color=ORIANGE)
 
         # scene.particles(grid_pos, radius=0.005, per_vertex_color=CDF)
+        # np.save('mass_grid', F_grid_m.to_numpy())
+        # exit(0)
 
         scene.mesh(sdf.vertices, sdf.indices)
 
+        #marching cube for soft body****************************************************
+        # 0.0018522126 max mass
+        vtx, faces, _, _ = skimage.measure.marching_cubes(
+            F_grid_m.to_numpy(), 0.0001)
+        faces = faces.reshape(-1)
+        soft_body_vertices = ti.Vector.field(3,
+                                             dtype=float,
+                                             shape=vtx.shape[0])
+        soft_body_vertices.from_numpy(vtx / (n_grid * 1.0))
+        soft_body_indices = ti.field(dtype=int, shape=faces.shape[0])
+        soft_body_indices.from_numpy(faces)
+        scene.mesh(soft_body_vertices,
+                   soft_body_indices,
+                   two_sided=True,
+                   color=ORIANGE)
+        # mesh = trimesh.Trimesh(vtx, faces)
+        # mesh.export(f'./meshes/cube{i}.obj')
+        #marching cube for soft body****************************************************
+
         canvas.scene(scene)
-        # video_manager.write_frame(window.get_image_buffer_as_numpy())
+        if video_record:
+            video_manager.write_frame(window.get_image_buffer_as_numpy())
         window.show()
 
         # if export_file:

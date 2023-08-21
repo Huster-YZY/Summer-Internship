@@ -11,8 +11,8 @@ def main():
 
     # Voxelization***********************************************************************
     t0 = time.time()
-    mesh = tm.load("./model/bunny.obj")
-    voxelized_mesh = mesh.voxelized(pitch=0.002).fill()
+    mesh = tm.load("./MPM/model/bunny.obj")
+    voxelized_mesh = mesh.voxelized(pitch=0.005).fill()
     voxelized_points_np = voxelized_mesh.points.astype(np.float32)
     num_particles_obj = voxelized_points_np.shape[0]
     voxelized_points = ti.Vector.field(3, float, num_particles_obj)
@@ -26,7 +26,8 @@ def main():
     canvas = window.get_canvas()
     scene = ti.ui.Scene()
     camera = ti.ui.Camera()
-    camera.position(0, 0, 4)
+    camera.position(0, 0, 2)
+
     while window.running:
         camera.track_user_inputs(window,
                                  movement_speed=0.005,

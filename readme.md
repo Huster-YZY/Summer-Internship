@@ -68,3 +68,10 @@ The results are computed by using [Mesh2SDF](https://github.com/wang-ps/mesh2sdf
 <p align=center>
  <img src=./video/voxel.jpg/>
 </p>
+
+<h4 align=center>Marching Cubes</h4>
+
+
+<p align=center>
+ <img src=./video/marching_cube.gif/>
+</p>
