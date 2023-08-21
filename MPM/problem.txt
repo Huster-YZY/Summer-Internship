@@ -1,6 +1,4 @@
-1. numerical fracture
-✅2. How to extend my code to 3D?
-✅3.How to handel collision from different material.
-4. How to exert constraints?
-5. How to uniformly sample the 3D model's Volume?
-6. What's meaning of the "1" ?
+1. The length of the result computed by Marching Cubes is changeable, which make it 
+impossible to allocate memory and also lead to the slow simulation speed.
+
+2. The Meshes constructed by Marching Cubes is noisy.

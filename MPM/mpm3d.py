@@ -269,7 +269,7 @@ video_manager = ti.tools.VideoManager(output_dir=result_dir,
 
 
 def main():
-    video_record = True
+    video_record = False
     init()
     SignedDistanceField = sdf.load_mesh_fast('./model/cube.obj',
                                              n_grid,
