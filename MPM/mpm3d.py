@@ -140,8 +140,9 @@ def Boundary():
 
         #TODO:add friction between material and the floor
         # Box Constraint
-        cond = (I < bound) & (F_grid_v[I] <
-                              0) | (I > n_grid - bound) & (F_grid_v[I] > 0)
+        # cond = (I < bound) & (F_grid_v[I] <
+        #                       0) | (I > n_grid - bound) & (F_grid_v[I] > 0)
+        cond = (I < bound)
         F_grid_v[I] = ti.select(cond, 0, F_grid_v[I])
 
 
@@ -164,6 +165,9 @@ def G2P():
             new_C += 4 * weight * g_v.outer_product(dpos) * inv_dx
 
         F_v[p] = new_v
+        #stick on floor
+        if F_x[p][1] < bound * 1.0 / n_grid:
+            F_v[p] = ti.Vector([0.0, 0.0, 0.0])
         F_x[p] += dt * F_v[p]
         # F_J[p] *= 1 + dt * new_C.trace()
         F_C[p] = new_C
@@ -269,7 +273,7 @@ video_manager = ti.tools.VideoManager(output_dir=result_dir,
 
 
 def main():
-    video_record = False
+    video_record = True
     init()
     SignedDistanceField = sdf.load_mesh_fast('./model/cube.obj',
                                              n_grid,
@@ -336,22 +340,19 @@ def main():
         scene.mesh(sdf.vertices, sdf.indices)
 
         #marching cube for soft body****************************************************
-        # 0.0018522126 max mass
-        vtx, faces, _, _ = skimage.measure.marching_cubes(
-            F_grid_m.to_numpy(), 0.0001)
-        faces = faces.reshape(-1)
-        soft_body_vertices = ti.Vector.field(3,
-                                             dtype=float,
-                                             shape=vtx.shape[0])
-        soft_body_vertices.from_numpy(vtx / (n_grid * 1.0))
-        soft_body_indices = ti.field(dtype=int, shape=faces.shape[0])
-        soft_body_indices.from_numpy(faces)
-        scene.mesh(soft_body_vertices,
-                   soft_body_indices,
-                   two_sided=True,
-                   color=ORIANGE)
-        # mesh = trimesh.Trimesh(vtx, faces)
-        # mesh.export(f'./meshes/cube{i}.obj')
+        # vtx, faces, _, _ = skimage.measure.marching_cubes(
+        #     F_grid_m.to_numpy(), 0.0001)
+        # faces = faces.reshape(-1)
+        # soft_body_vertices = ti.Vector.field(3,
+        #                                      dtype=float,
+        #                                      shape=vtx.shape[0])
+        # soft_body_vertices.from_numpy(vtx / (n_grid * 1.0))
+        # soft_body_indices = ti.field(dtype=int, shape=faces.shape[0])
+        # soft_body_indices.from_numpy(faces)
+        # scene.mesh(soft_body_vertices,
+        #            soft_body_indices,
+        #            two_sided=True,
+        #            color=ORIANGE)
         #marching cube for soft body****************************************************
 
         canvas.scene(scene)

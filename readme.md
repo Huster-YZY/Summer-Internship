@@ -55,23 +55,7 @@ The results are computed by using [Mesh2SDF](https://github.com/wang-ps/mesh2sdf
  <img src=./video/collision_static.gif/>
 </p>
 
-<h4 align=center>Dynamic Collision Objects</h4>
 
-
-<p align=center>
- <img src=./video/dynamic_co.gif/>
-</p>
-
-<h4 align=center>Mesh to Points</h4>
-
-
-<p align=center>
- <img src=./video/voxel.jpg/>
-</p>
-
-<h4 align=center>Marching Cubes</h4>
-
-
-<p align=center>
- <img src=./video/marching_cube.gif/>
-</p>
+|dynamic|marching cubes|fracture|
+|--|--|--|
+| <img src=./video/dynamic_co.gif/> | <img src=./video/marching_cube.gif/> |<img src=./video/fracture.gif>|
