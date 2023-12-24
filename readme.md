@@ -16,7 +16,7 @@ If you want to excute my code, please install the [Taichi](https://github.com/ta
 
 
 
-|Implicit Solver|Explicit Silver|
+|Implicit Solver|Explicit Solver|
 |--|--|
 | <img src=./video/implicit_mass_spring.gif/> | <img src=./video/explicit_mass_spring.gif/> |
 
